@@ -88,12 +88,82 @@ flags = {
     0x1000000:"TASK_FLAG_INTERACTIVE",
 }
 
+# https://msdn.microsoft.com/en-us/library/cc248290.aspx
+triggerflags = {
+    01:"TASK_TRIGGER_FLAG_HAS_END_DATE",
+    0b10:"TASK_TRIGGER_FLAG_KILL_AT_DURATION_END",
+    0b100:"TASK_TRIGGER_FLAG_DISABLED",
+}
+
 # http://msdn.microsoft.com/en-us/library/cc248286%28v=prot.10%29.aspx
 priorities = {
     0x20000000:"NORMAL_PRIORITY_CLASS",
     0x40000000:"IDLE_PRIORITY_CLASS",
     0x80000000:"HIGH_PRIORITY_CLASS", 
     0x100000:"REALTIME_PRIORITY_CLASS",
+}
+
+# https://msdn.microsoft.com/en-us/library/cc248291.aspx
+triggertype = {
+    0x00000000:"ONCE",
+    0x00000001:"DAILY",
+    0x00000002:"WEEKLY",
+    0x00000003:"MONTHLYDATE",
+    0x00000004:"MONTHLYDOW",
+    0x00000005:"EVENT_ON_IDLE",
+    0x00000006:"EVENT_AT_SYSTEMSTART",
+    0x00000007:"EVENT_AT_LOGON",
+}
+
+exitcode = {
+    0x0: "S_OK",
+    0x1: "S_FALSE",
+    0x80000002: "E_OUTOFMEMORY",
+    0x80000009: "E_ACCESSDENIED",
+    0x80000003: "E_INVALIDARG",
+    0x80000008: "E_FAIL",
+    0x8000FFFF: "E_UNEXPECTED",
+    0x00041300: "SCHED_S_TASK_READY",
+    0x00041301: "SCHED_S_TASK_RUNNING",
+    0x00041302: "SCHED_S_TASK_DISABLED",
+    0x00041303: "SCHED_S_TASK_HAS_NOT_RUN",
+    0x00041304: "SCHED_S_TASK_NO_MORE_RUNS",
+    0x00041305: "SCHED_S_TASK_NOT_SCHEDULED",
+    0x00041306: "SCHED_S_TASK_TERMINATED",
+    0x00041307: "SCHED_S_TASK_NO_VALID_TRIGGERS",
+    0x00041308: "SCHED_S_EVENT_TRIGGER",
+    0x80041309: "SCHED_E_TRIGGER_NOT_FOUND",
+    0x8004130A: "SCHED_E_TASK_NOT_READY",
+    0x8004130B: "SCHED_E_TASK_NOT_RUNNING",
+    0x8004130C: "SCHED_E_SERVICE_NOT_INSTALLED",
+    0x8004130D: "SCHED_E_CANNOT_OPEN_TASK",
+    0x8004130E: "SCHED_E_INVALID_TASK",
+    0x8004130F: "SCHED_E_ACCOUNT_INFORMATION_NOT_SET",
+    0x80041310: "SCHED_E_ACCOUNT_NAME_NOT_FOUND",
+    0x80041311: "SCHED_E_ACCOUNT_DBASE_CORRUPT",
+    0x80041312: "SCHED_E_NO_SECURITY_SERVICES",
+    0x80041313: "SCHED_E_UNKNOWN_OBJECT_VERSION",
+    0x80041314: "SCHED_E_UNSUPPORTED_ACCOUNT_OPTION",
+    0x80041315: "SCHED_E_SERVICE_NOT_RUNNING",
+    0x80041316: "SCHED_E_UNEXPECTEDNODE",
+    0x80041317: "SCHED_E_NAMESPACE",
+    0x80041318: "SCHED_E_INVALIDVALUE",
+    0x80041319: "SCHED_E_MISSINGNODE",
+    0x8004131A: "SCHED_E_MALFORMEDXML",
+    0x0004131B: "SCHED_S_SOME_TRIGGERS_FAILED",
+    0x0004131C: "SCHED_S_BATCH_LOGON_PROBLEM",
+    0x8004131D: "SCHED_E_TOO_MANY_NODES",
+    0x8004131E: "SCHED_E_PAST_END_BOUNDARY",
+    0x8004131F: "SCHED_E_ALREADY_RUNNING",
+    0x80041320: "SCHED_E_USER_NOT_LOGGED_ON",
+    0x80041321: "SCHED_E_INVALID_TASK_HASH",
+    0x80041322: "SCHED_E_SERVICE_NOT_AVAILABLE",
+    0x80041323: "SCHED_E_SERVICE_TOO_BUSY",
+    0x80041324: "SCHED_E_TASK_ATTEMPTED",
+    0x00041325: "SCHED_S_TASK_QUEUED",
+    0x80041326: "SCHED_E_TASK_DISABLED",
+    0x80041327: "SCHED_E_TASK_NOT_V1_COMPAT",
+    0x80041328: "SCHED_E_START_ON_DEMAND",
 }
 
 class JobDate:
@@ -112,10 +182,10 @@ class JobDate:
         else:
             self.Weekday = None
             self.Day = struct.unpack("<H", data[4:6])[0]
-            self.Hour = struct.unpack("<H", data[12:14])[0]
-            self.Minute = struct.unpack("<H", data[14:16])[0]
-            self.Second = struct.unpack("<H", data[16:18])[0]
-            self.Milliseconds = struct.unpack("<H", data[18:20])[0]
+            self.Hour = 00
+            self.Minute = 00
+            self.Second = 00
+            self.Milliseconds = 00
 
 
     def __repr__(self):
@@ -123,6 +193,8 @@ class JobDate:
         mon = months.get(self.Month, None)
         if day != None and mon != None and not self.scheduled:
             return "{0} {1} {2} {3:02}:{4:02}:{5:02}.{6} {7}".format(day, mon, self.Day, self.Hour, self.Minute, self.Second, self.Milliseconds, self.Year)
+        elif self.scheduled and mon == None:
+            return "Does not expire"
         elif self.scheduled:
             return "{0} {1} {2:02}:{3:02}:{4:02}.{5} {6}".format(mon, self.Day, self.Hour, self.Minute, self.Second, self.Milliseconds, self.Year)
         return "Task not yet run"
@@ -142,7 +214,34 @@ class UUID:
     def __repr__(self):
         return "{" + "{0:08X}-{1:04X}-{2:04X}-{3:04X}-{4:02X}{5:02X}{6:02X}".format(self.UUID0, self.UUID1, self.UUID2, 
                 self.UUID3, self.UUID4, self.UUID5, self.UUID6) + "}"
-        
+
+class TriggerFields:
+    def __init__(self, data, ttype):
+        self.ttype = ttype
+        if self.ttype == 1:
+            self.DaysInterval = struct.unpack("<H", data[:2])[0]
+        elif self.ttype == 2:
+            self.WeeksInterval = struct.unpack("<H", data[:2])[0]
+            self.DaysOfTheWeek = struct.unpack("<H", data[2:4])[0]
+        elif self.ttype == 3:
+            self.Days = struct.unpack("<I", data[:4])[0]
+            self.Months = struct.unpack("<H", data[4:6])[0]
+        elif self.ttype == 4:
+            self.WhichWeek = struct.unpack("<H", data[:2])[0]
+            self.DaysOfTheWeek = struct.unpack("<H", data[2:4])[0]
+            self.Months = struct.unpack("<H", data[4:6])[0]
+
+    def __repr__(self):
+        if self.ttype == 1:
+            return "Days Interval: {0}\n".format(self.DaysInterval)
+        elif self.ttype == 2:
+            return "Weeks Interval: {0}\nDays Of The Week: {1}\n".format(self.DaysInterval, self.DaysOfTheWeek)
+        elif self.ttype == 3:
+            return "Days: {0}\nMonths: {1}\n".format(self.Days, self.Months)
+        elif self.ttype == 4:
+            return "Which Week: {0}\nDays Of The Week: {1}\nMonths: {2}\n".format(self.WhichWeek, self.DaysOfTheWeek, self.Months)
+        return ""
+                
 # http://msdn.microsoft.com/en-us/library/cc248285%28PROT.10%29.aspx
 class Job:
     def __init__(self, data):
@@ -161,7 +260,7 @@ class Job:
         self.IdleWait = struct.unpack("<H", data[30:32])[0]
         self.Priority = struct.unpack(">I", data[32:36])[0]
         self.MaxRunTime = struct.unpack("<i", data[36:40])[0]
-        self.ExitCode = struct.unpack("<i", data[40:44])[0]
+        self.ExitCode = struct.unpack("<I", data[40:44])[0]
         self.Status = struct.unpack("<i", data[44:48])[0]
         self.Flags = struct.unpack(">I", data[48:52])[0]
         self.RunDate = JobDate(data[52:68])
@@ -198,17 +297,64 @@ class Job:
         if self.CommentSize > 0:
             self.Comment = data[self.cursor:self.cursor + self.CommentSize * 2].replace("\x00", "")
             self.cursor += self.CommentSize * 2
-        # this is probably User Data + Reserved Data:
-        self.UserData = data[self.cursor:self.cursor + 18]
-        self.cursor += 18
-        # This isn't really documented, but this is the time the job was scheduled to run:
-        self.ScheduledDate = JobDate(data[self.cursor:self.cursor + 20], scheduled = True)
+        self.UserDataSize = struct.unpack("<H", data[self.cursor:self.cursor + 2])[0]
+        self.cursor += 2
+        if self.UserDataSize > 0:
+            self.UserData = data[self.cursor:self.cursor + self.UserDataSize * 2].replace("\x00", "")
+            self.cursor += self.UserDataSize * 2
+        self.ReservedDataSize = struct.unpack("<H", data[self.cursor:self.cursor + 2])[0]
+        self.cursor += 2
+        self.StartError = struct.unpack("<i", data[self.cursor:self.cursor + 4])[0]
+        self.cursor += 4
+        self.TaskFlags = struct.unpack("<i", data[self.cursor:self.cursor + 4])[0]
+        self.cursor += 4
+        self.TriggerCount = struct.unpack("<H", data[self.cursor:self.cursor + 2])[0]
+        self.cursor += 2
+        self.TriggerSize = struct.unpack("<H",data[self.cursor:self.cursor + 2])[0]
+        self.cursor += 2
+        self.Reserved1 = struct.unpack("<H",data[self.cursor:self.cursor + 2])[0]
+        self.cursor += 2
+        self.ScheduledStart = JobDate(data[self.cursor:self.cursor + 6], scheduled = True)
+        self.cursor += 6
+        self.ScheduledEnd = JobDate(data[self.cursor:self.cursor + 6], scheduled = True)
+        self.cursor += 6
+        self.StartHour = struct.unpack("<H", data[self.cursor:self.cursor + 2])[0]
+        self.cursor += 2
+        self.StartMinute = struct.unpack("<H", data[self.cursor:self.cursor + 2])[0]
+        self.cursor += 2
+        self.MinutesDuration = struct.unpack("<i", data[self.cursor:self.cursor + 4])[0]
+        self.cursor += 4
+        self.MinutesInterval = struct.unpack("<i",data[self.cursor:self.cursor + 4])[0]
+        self.cursor += 4
+        self.TriggerFlag = struct.unpack("<i", data[self.cursor:self.cursor + 4])[0]
+        self.cursor += 4
+        self.TriggerType = struct.unpack("<i", data[self.cursor:self.cursor + 4])[0]
+        self.cursor += 4
+        self.TriggerSpecific = TriggerFields(data[self.cursor:self.cursor + 6], self.TriggerType)
+        self.cursor += 6
+        self.Padding = struct.unpack("<H", data[self.cursor:self.cursor + 2])[0]
+        self.cursor += 2
+        self.Reserved2 = struct.unpack("<H", data[self.cursor:self.cursor + 2])[0]
+        self.cursor += 2
+        self.Reserved3 = struct.unpack("<H", data[self.cursor:self.cursor + 2])[0]
+        self.cursor += 2
+        self.Test = data[self.cursor:self.cursor + 2]
+        if self.Test != '':
+            self.SignatureVersion = struct.unpack("<H", data[self.cursor:self.cursor + 2])[0]
+            self.cursor += 2
+            self.MinClientVersion = struct.unpack("<H", data[self.cursor:self.cursor + 2])[0]
+            self.cursor += 2
+            self.JobSignature = data[self.cursor:self.cursor + 64]
 
     def _get_job_info(self):
         lines = []
         lines.append("Product Info: {0}".format(products.get(self.ProductInfo, "Unknown Version")))
         lines.append("File Version: {0}".format(self.FileVersion))
         lines.append("UUID: {0}".format(self.UUID))
+        lines.append("Error Retry Count: {0}".format(self.ErrorRetryCount))
+        lines.append("Error Retry Interval: {0}".format(self.ErrorRetryInterval))
+        lines.append("Idle Deadline: {0}".format(self.IdleDeadline))
+        lines.append("Idle Wait: {0}".format(self.IdleWait))
         priority = ""
         for p in priorities:
             if self.Priority & p == p:
@@ -219,7 +365,11 @@ class Job:
         minutes, ms = divmod(ms, 60000)
         seconds = ms / 1000
         lines.append("Maximum Run Time: {0:02}:{1:02}:{2:02}.{3} (HH:MM:SS.MS)".format(hours, minutes, seconds, ms))
-        lines.append("Exit Code: {0}".format(self.ExitCode))
+        ecode = ""
+        for e in exitcode:
+            if self.ExitCode == e:
+                ecode = exitcode[e]
+        lines.append("Exit Code: {0}".format(ecode))
         lines.append("Status: {0}".format(task_status.get(self.Status, "Unknown Status")))
         theflags = ""
         for flag in flags:
@@ -234,7 +384,42 @@ class Job:
         lines.append("Working Directory: {0}".format(self.WorkingDirectory))
         lines.append("User: {0}".format(self.User))
         lines.append("Comment: {0}".format(self.Comment))
-        lines.append("Scheduled Date: {0}".format(self.ScheduledDate))
+#        lines.append("User Data Size: {0}".format(self.UserDataSize))
+#        lines.append("Reserved Data Size: {0}".format(self.ReservedDataSize))
+        for e in exitcode:
+            if self.StartError == e:
+                serror = exitcode[e]
+        lines.append("Start Error: {0}".format(serror))
+#        lines.append("Task Flags: {0}".format(self.TaskFlags))
+        lines.appensd("Trigger Count: {0}".format(self.TriggerCount))
+        lines.append("Scheduled Start Date: {0}".format(self.ScheduledStart))
+        lines.append("Scheduled End Date: {0}".format(self.ScheduledEnd))
+        lines.append("Start Hour: {0}".format(self.StartHour))
+        lines.append("Start Minute: {0}".format(self.StartMinute))
+        lines.append("Minutes Duration: {0}".format(self.MinutesDuration))
+        lines.append("Minutes Interval: {0}".format(self.MinutesInterval))
+        tflags = ""
+        for flag in triggerflags:
+            if self.TriggerFlag & flag == flag:
+                tflags += triggerflags[flag] + ","
+        lines.append("Trigger Flags: {0}".format(tflags.rstrip(", ")))
+        ttype = ""
+        for type in triggertype:
+            if self.TriggerType & type == type:
+                ttype += triggertype[type] + ","
+        lines.append("Trigger Type: {0}\n".format(ttype.rstrip(", ")))
+        if self.TriggerSpecific != "":
+            lines.append("{0}".format(self.TriggerSpecific))
+#        lines.append("Padding: {0}".format(self.Padding))
+#        lines.append("Reserved2: {0}".format(self.Reserved2))
+#        lines.append("Reserved3: {0}".format(self.Reserved3))
+        if self.Test != '':
+#            lines.append("Signature Version: {0}".format(self.SignatureVersion))
+#            lines.append"Min Client Version: {0}".format(self.MinClientVersion))
+            str = ""
+            for ch in self.JobSignature:
+                str += hex(ord(ch)).lstrip("0x")
+            lines.append("Job Signature: {0}".format(str))
         return lines
 
     def __repr__(self):
@@ -242,6 +427,10 @@ class Job:
         lines += "Product Info: {0}\n".format(products.get(self.ProductInfo, "None"))
         lines += "File Version: {0}\n".format(self.FileVersion)
         lines += "UUID: {0}\n".format(self.UUID)
+        lines += "Error Retry Count: {0}\n".format(self.ErrorRetryCount)
+        lines += "Error Retry Interval: {0}\n".format(self.ErrorRetryInterval)
+        lines += "Idle Deadline: {0}\n".format(self.IdleDeadline)
+        lines += "Idle Wait: {0}\n".format(self.IdleWait)
         priority = ""
         for p in priorities:
             if self.Priority & p == p:
@@ -252,7 +441,10 @@ class Job:
         minutes, ms = divmod(ms, 60000)
         seconds = ms / 1000
         lines += "Maximum Run Time: {0:02}:{1:02}:{2:02}.{3} (HH:MM:SS.MS)\n".format(hours, minutes, seconds, ms)
-        lines += "Exit Code: {0}\n".format(self.ExitCode)
+        for e in exitcode:
+            if self.ExitCode == e:
+                ecode = exitcode[e]
+        lines += "Exit Code: {0}\n".format(ecode)
         lines += "Status: {0}\n".format(task_status.get(self.Status, "Unknown Status"))
         theflags = ""
         for flag in flags:
@@ -267,7 +459,42 @@ class Job:
         lines += "Working Directory: {0}\n".format(self.WorkingDirectory)
         lines += "User: {0}\n".format(self.User)
         lines += "Comment: {0}\n".format(self.Comment)
-        lines += "Scheduled Date: {0}\n".format(self.ScheduledDate)
+#        lines += "User Data Size: {0}\n".format(self.UserDataSize)
+#        lines += "Reserved Data Size: {0}\n".format(self.ReservedDataSize)
+        for e in exitcode:
+            if self.StartError == e:
+                serror = exitcode[e]
+        lines += "Start Error: {0}\n".format(serror)
+#        lines += "Task Flags: {0}\n".format(self.TaskFlags)
+        lines += "Trigger Count: {0}\n".format(self.TriggerCount)
+        lines += "Scheduled Start Date: {0}\n".format(self.ScheduledStart)
+        lines += "Scheduled End Date: {0}\n".format(self.ScheduledEnd)
+        lines += "Start Hour: {0}\n".format(self.StartHour)
+        lines += "Start Minute: {0}\n".format(self.StartMinute)
+        lines += "Minutes Duration: {0}\n".format(self.MinutesDuration)
+        lines += "Minutes Interval: {0}\n".format(self.MinutesInterval)
+        tflags = ""
+        for flag in triggerflags:
+            if self.TriggerFlag & flag == flag:
+                tflags += triggerflags[flag] + ","
+        lines += "Trigger Flags: {0}\n".format(tflags.rstrip(", "))
+        ttype = ""
+        for type in triggertype:
+            if self.TriggerType & type == type:
+                ttype = triggertype[type]
+        lines += "Trigger Type: {0}\n".format(ttype)
+        if self.TriggerSpecific != "":
+            lines += "{0}".format(self.TriggerSpecific)
+#        lines += "Padding: {0}\n".format(self.Padding)
+#        lines += "Reserved2: {0}\n".format(self.Reserved2)
+#        lines += "Reserved3: {0}\n".format(self.Reserved3)
+        if self.Test != '':
+#            lines += "Signature Version: {0}\n".format(self.SignatureVersion)
+#            lines += "Min Client Version: {0}\n".format(self.MinClientVersion)
+            str = ""
+            for ch in self.JobSignature:
+                str += hex(ord(ch)).lstrip("0x")
+            lines += "Job Signature: {0}\n".format(str)
         return lines
         
 
@@ -330,4 +557,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
