@@ -339,7 +339,7 @@ class Job:
         self.Reserved3 = struct.unpack("<H", data[self.cursor:self.cursor + 2])[0]
         self.cursor += 2
         self.Test = data[self.cursor:self.cursor + 2]
-        if self.Test != '':
+        if self.Test != '' and self.TriggerCount == 1:
             self.SignatureVersion = struct.unpack("<H", data[self.cursor:self.cursor + 2])[0]
             self.cursor += 2
             self.MinClientVersion = struct.unpack("<H", data[self.cursor:self.cursor + 2])[0]
