@@ -384,13 +384,10 @@ class Job:
         lines.append("Working Directory: {0}".format(self.WorkingDirectory))
         lines.append("User: {0}".format(self.User))
         lines.append("Comment: {0}".format(self.Comment))
-#        lines.append("User Data Size: {0}".format(self.UserDataSize))
-#        lines.append("Reserved Data Size: {0}".format(self.ReservedDataSize))
         for e in exitcode:
             if self.StartError == e:
                 serror = exitcode[e]
         lines.append("Start Error: {0}".format(serror))
-#        lines.append("Task Flags: {0}".format(self.TaskFlags))
         lines.appensd("Trigger Count: {0}".format(self.TriggerCount))
         lines.append("Scheduled Start Date: {0}".format(self.ScheduledStart))
         lines.append("Scheduled End Date: {0}".format(self.ScheduledEnd))
@@ -410,12 +407,7 @@ class Job:
         lines.append("Trigger Type: {0}\n".format(ttype.rstrip(", ")))
         if self.TriggerSpecific != "":
             lines.append("{0}".format(self.TriggerSpecific))
-#        lines.append("Padding: {0}".format(self.Padding))
-#        lines.append("Reserved2: {0}".format(self.Reserved2))
-#        lines.append("Reserved3: {0}".format(self.Reserved3))
         if self.Test != '':
-#            lines.append("Signature Version: {0}".format(self.SignatureVersion))
-#            lines.append"Min Client Version: {0}".format(self.MinClientVersion))
             str = ""
             for ch in self.JobSignature:
                 str += hex(ord(ch)).lstrip("0x")
@@ -459,13 +451,10 @@ class Job:
         lines += "Working Directory: {0}\n".format(self.WorkingDirectory)
         lines += "User: {0}\n".format(self.User)
         lines += "Comment: {0}\n".format(self.Comment)
-#        lines += "User Data Size: {0}\n".format(self.UserDataSize)
-#        lines += "Reserved Data Size: {0}\n".format(self.ReservedDataSize)
         for e in exitcode:
             if self.StartError == e:
                 serror = exitcode[e]
         lines += "Start Error: {0}\n".format(serror)
-#        lines += "Task Flags: {0}\n".format(self.TaskFlags)
         lines += "Trigger Count: {0}\n".format(self.TriggerCount)
         lines += "Scheduled Start Date: {0}\n".format(self.ScheduledStart)
         lines += "Scheduled End Date: {0}\n".format(self.ScheduledEnd)
@@ -485,12 +474,7 @@ class Job:
         lines += "Trigger Type: {0}\n".format(ttype)
         if self.TriggerSpecific != "":
             lines += "{0}".format(self.TriggerSpecific)
-#        lines += "Padding: {0}\n".format(self.Padding)
-#        lines += "Reserved2: {0}\n".format(self.Reserved2)
-#        lines += "Reserved3: {0}\n".format(self.Reserved3)
         if self.Test != '':
-#            lines += "Signature Version: {0}\n".format(self.SignatureVersion)
-#            lines += "Min Client Version: {0}\n".format(self.MinClientVersion)
             str = ""
             for ch in self.JobSignature:
                 str += hex(ord(ch)).lstrip("0x")
